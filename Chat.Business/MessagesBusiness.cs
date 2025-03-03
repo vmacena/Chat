@@ -2,7 +2,7 @@
 
 namespace Chat.Business
 {
-    public class MessageBusiness(ChatDbContext dbContext)
+    public class MessagesBusiness(ChatDbContext dbContext)
     {
         private readonly ChatDbContext _dbContext = dbContext;
 
