@@ -1,3 +1,4 @@
+using Chat.Business;
 using Chat.Core.Persistence;
 using Microsoft.AspNetCore.WebSockets;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ namespace Chat.API
                 );
             });
 
+            services.AddScoped<MessagesBusiness>();
             services.AddControllers();
         }
 
