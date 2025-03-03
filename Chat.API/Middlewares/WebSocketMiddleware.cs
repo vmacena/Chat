@@ -3,11 +3,8 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Chat.Core.Entities;
 using Chat.Core.Persistence;
-using Microsoft.AspNetCore.Http;
 
 namespace Chat.API.Middlewares
 {
