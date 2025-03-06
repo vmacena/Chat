@@ -6,11 +6,11 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 CONTEXT="$ROOT_DIR/flyway"
 CONTAINER_NAME="flyway-migrate"
 
-DB_HOST=${DB_HOST:-localhost}
-DB_NAME=${DB_NAME:-postgres}
-DB_USERNAME=${DB_USERNAME:-postgres}
-DB_PASSWORD=${DB_PASSWORD:-Senha@123}
-DB_PORT=${DB_PORT:-5435}
+DB_HOST="localhost"
+DB_NAME="postgres"
+DB_USERNAME="postgres"
+DB_PASSWORD="root"
+DB_PORT="5435"
 
 if ! command -v docker &> /dev/null; then
     echo "Docker is not installed. Please install Docker and try again."
@@ -32,6 +32,6 @@ docker run --rm --network="host" \
     -e "DB_USERNAME=$DB_USERNAME" \
     -e "DB_PASSWORD=$DB_PASSWORD" \
     -e "DB_PORT=$DB_PORT" \
-    "$CONTAINER_NAME"
+    "$CONTAINER_NAME" sh /flyway/migrate.sh
 
 echo "Flyway migrations completed successfully."

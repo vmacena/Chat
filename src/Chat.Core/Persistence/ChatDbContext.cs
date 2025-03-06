@@ -1,11 +1,8 @@
 using Chat.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 
-public class ChatDbContext : DbContext
+public class ChatDbContext(DbContextOptions<ChatDbContext> options) : DbContext(options)
 {
-    public ChatDbContext(DbContextOptions<ChatDbContext> options)
-        : base(options) { }
-
     public DbSet<User> Users { get; set; }
     public DbSet<Contact> Contacts { get; set; }
     public DbSet<Message> Messages { get; set; }
