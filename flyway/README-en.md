@@ -10,15 +10,15 @@ This repository contains scripts to manage database migrations using Entity Fram
 
 ## Available Scripts
 
-### 1. `add-migration.sh`
+### 1. `generate-ef-migration.sh`
 
-**Location:** `flyway/scripts/add-migration.sh`
+**Location:** `flyway/scripts/generate-ef-migration.sh`
 
 This script creates a new migration in Entity Framework.
 
 #### Usage:
 ```bash
-./add-migration.sh <MIGRATION_NAME>
+./generate-ef-migration.sh <MIGRATION_NAME>
 ```
 
 #### Parameters:
@@ -78,7 +78,7 @@ The following environment variables can be set to configure the database:
 
 1. Create a new migration:
 ```bash
-./add-migration.sh InitialMigration
+./generate-ef-migration.sh InitialMigration
 ```
 
 2. Generate SQL scripts from migrations:
