@@ -9,6 +9,5 @@ public class Message
     public required User Receiver { get; set; }
     public string? Content { get; set; }
     public DateTime Timestamp { get; set; }
-    public bool IsRead { get; set; }
     public ICollection<UploadFile>? UploadFiles { get; set; }
 }
