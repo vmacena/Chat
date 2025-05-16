@@ -9,4 +9,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <ProjectReference Include="..\Chat.Core\Chat.Core.csproj" />
+    <ProjectReference Include="..\Chat.API\Chat.API.csproj" />
+    <ProjectReference Include="..\Chat.Data\Chat.Common.csproj" />
+  </ItemGroup>
+  
 </Project>
