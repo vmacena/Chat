@@ -1,6 +1,8 @@
 using System.Text;
 using Chat.API.Services;
+using Chat.Business.Repositories;
 using Chat.Business.Services;
+using Chat.Core.Interfaces;
 using Chat.Core.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +61,8 @@ public static class StartupExtensions
         );
 
         // Business services
+        services.AddScoped<UserService>();
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<UserService>();
     }
 

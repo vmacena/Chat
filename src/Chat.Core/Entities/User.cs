@@ -29,7 +29,8 @@ public partial class User
     public virtual Auth? Auth { get; set; }
 
     [InverseProperty("ContactNavigation")]
-    public virtual ICollection<Contact> ContactContactNavigations { get; set; } = new List<Contact>();
+    public virtual ICollection<Contact> ContactContactNavigations { get; set; } =
+        new List<Contact>();
 
     [InverseProperty("User")]
     public virtual ICollection<Contact> ContactUsers { get; set; } = new List<Contact>();

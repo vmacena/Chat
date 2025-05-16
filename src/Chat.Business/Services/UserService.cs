@@ -1,26 +1,21 @@
 using System;
 using System.Threading.Tasks;
-using BCrypt.Net;
 using Chat.Common.DTOs;
 using Chat.Core.Entities;
-using Chat.Core.Persistence;
-using Microsoft.EntityFrameworkCore;
+using Chat.Core.Interfaces;
 
 namespace Chat.Business.Services;
 
 public class UserService
 {
-    private readonly ChatDbContext _db;
+    private readonly IUserRepository _repo;
 
-    public UserService(ChatDbContext db)
+    public UserService(IUserRepository repo)
     {
-        _db = db;
+        _repo = repo;
     }
 
-    public async Task<bool> EmailExistsAsync(string email)
-    {
-        return await _db.Users.AnyAsync(u => u.Email == email);
-    }
+    public async Task<bool> EmailExistsAsync(string email) => await _repo.EmailExistsAsync(email);
 
     public async Task<User> RegisterAsync(UserRegisterDto dto)
     {
@@ -30,20 +25,18 @@ public class UserService
             Name = dto.Name,
             Email = dto.Email,
             Publicid = Guid.NewGuid().ToString(),
-            Passwordhash = BCrypt.Net.BCrypt.HashPassword(dto.Password), // ajuste aqui
+            Passwordhash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Createdat = DateTime.UtcNow.ToLocalTime(),
         };
-
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
+        await _repo.AddAsync(user);
         return user;
     }
 
     public async Task<User> AuthenticateAsync(UserLoginDto dto)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+        var user = await _repo.GetByEmailAsync(dto.Email);
         if (user == null)
             return null;
-        return BCrypt.Net.BCrypt.Verify(dto.Password, user.Passwordhash) ? user : null; // ajuste aqui
+        return BCrypt.Net.BCrypt.Verify(dto.Password, user.Passwordhash) ? user : null;
     }
 }
