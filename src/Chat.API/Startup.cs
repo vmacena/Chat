@@ -1,4 +1,7 @@
+// StartupExtensions.cs
 using System.Text;
+using System.Text.Json;
+using Chat.API.Hubs;
 using Chat.API.Services;
 using Chat.Business.Repositories;
 using Chat.Business.Services;
@@ -7,6 +10,7 @@ using Chat.Core.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 public static class StartupExtensions
 {
@@ -15,55 +19,97 @@ public static class StartupExtensions
         IConfiguration configuration
     )
     {
-        // Swagger/OpenAPI
         services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen();
+        services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Chat API", Version = "v1" });
+            c.AddSecurityDefinition(
+                "Bearer",
+                new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                }
+            );
+            c.AddSecurityRequirement(
+                new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer",
+                            },
+                        },
+                        Array.Empty<string>()
+                    },
+                }
+            );
+        });
 
-        // Controllers
         services.AddControllers();
 
-        // JWT Authentication
-        services.AddScoped<JwtService>();
-        var jwtKey = configuration["Jwt:Key"] ?? throw new ArgumentNullException("Jwt:Key");
-        var jwtIssuer =
-            configuration["Jwt:Issuer"] ?? throw new ArgumentNullException("Jwt:Issuer");
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var key = Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!);
+        var issuer = configuration["Jwt:Issuer"]!;
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+            .AddJwtBearer(opts =>
             {
-                options.TokenValidationParameters = new TokenValidationParameters
+                opts.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtIssuer,
-                    IssuerSigningKey = signingKey,
+                    ValidIssuer = issuer,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                };
+                opts.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = ctx =>
+                    {
+                        var token = ctx.Request.Query["access_token"];
+                        var path = ctx.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/chatHub"))
+                            ctx.Token = token;
+                        return Task.CompletedTask;
+                    },
                 };
             });
 
-        // CORS
-        services.AddCors(options =>
-            options.AddPolicy(
+        services.AddCors(b =>
+            b.AddPolicy(
                 "AllowAll",
-                builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()
+                p =>
+                    p.SetIsOriginAllowed(_ => true)
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials()
             )
         );
 
-        // DbContext
-        services.AddDbContext<ChatDbContext>(options =>
-            options.UseNpgsql(
-                configuration.GetConnectionString("DefaultConnection")
-                    ?? "Host=localhost;Port=5435;Database=postgres;Username=postgres;Password=root"
-            )
+        services
+            .AddSignalR()
+            .AddJsonProtocol(o =>
+            {
+                o.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                o.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
+
+        services.AddDbContext<ChatDbContext>(opt =>
+            opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")!)
         );
 
-        // Business services
-        services.AddScoped<UserService>();
+        services.AddScoped<JwtService>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<UserService>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<MessageService>();
     }
 
     public static void UseStartupMiddleware(this WebApplication app)
@@ -79,5 +125,6 @@ public static class StartupExtensions
         app.UseAuthentication();
         app.UseAuthorization();
         app.MapControllers();
+        app.MapHub<ChatHub>("/chatHub");
     }
 }
