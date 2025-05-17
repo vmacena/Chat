@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Chat.Core.Entities;
 using Chat.Core.Interfaces;
@@ -26,4 +27,8 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> EmailExistsAsync(string email) =>
         await _db.Users.AnyAsync(u => u.Email == email);
+
+    public async Task<User> GetByIdAsync(Guid id) => await _db.Users.FindAsync(id);
+
+    public async Task<bool> ExistsAsync(Guid id) => await _db.Users.AnyAsync(u => u.Id == id);
 }

@@ -11,56 +11,43 @@ namespace Chat.Business.Services;
 
 public class MessageService
 {
-    private readonly IMessageRepository _repo;
+    private readonly IMessageRepository _messageRepo;
+    private readonly IUserRepository _userRepo;
 
-    public MessageService(IMessageRepository repo)
+    public MessageService(IMessageRepository messageRepo, IUserRepository userRepo)
     {
-        _repo = repo;
+        _messageRepo = messageRepo;
+        _userRepo = userRepo;
     }
 
     public async Task<MessageDto> SendMessageAsync(MessageDto dto)
     {
-        Console.WriteLine(
-            $"[SendMessageAsync] Iniciando envio. SenderId: {dto.SenderId}, ReceiverId: {dto.ReceiverId}, Content: {dto.Content}"
-        );
+        if (!await _userRepo.ExistsAsync(dto.SenderId))
+            throw new Exception("Remetente não encontrado");
 
-        try
+        if (!await _userRepo.ExistsAsync(dto.ReceiverId))
+            throw new Exception("Destinatário não encontrado");
+
+        var message = new Message
         {
-            var message = new Message
-            {
-                Id = Guid.NewGuid(),
-                Senderid = dto.SenderId,
-                Receiverid = dto.ReceiverId,
-                Content = dto.Content,
-                Sentat = DateTime.UtcNow,
-                Seenat = null,
-            };
+            Id = Guid.NewGuid(),
+            Senderid = dto.SenderId,
+            Receiverid = dto.ReceiverId,
+            Content = dto.Content,
+            Sentat = DateTime.UtcNow,
+        };
 
-            Console.WriteLine($"[SendMessageAsync] Mensagem criada. Id: {message.Id}");
+        await _messageRepo.AddAsync(message);
 
-            await _repo.AddAsync(message);
-
-            Console.WriteLine($"[SendMessageAsync] Mensagem salva no banco. Id: {message.Id}");
-
-            var result = new MessageDto
-            {
-                Id = message.Id,
-                SenderId = message.Senderid,
-                ReceiverId = message.Receiverid,
-                Content = message.Content,
-                SentAt = message.Sentat,
-                SeenAt = message.Seenat,
-            };
-
-            Console.WriteLine($"[SendMessageAsync] Retornando DTO. Id: {result.Id}");
-
-            return result;
-        }
-        catch (Exception ex)
+        return new MessageDto
         {
-            Console.WriteLine($"[SendMessageAsync] Erro ao salvar mensagem: {ex}");
-            throw;
-        }
+            Id = message.Id,
+            SenderId = message.Senderid,
+            ReceiverId = message.Receiverid,
+            Content = message.Content,
+            SentAt = message.Sentat,
+            SeenAt = message.Seenat,
+        };
     }
 
     public async Task<IEnumerable<MessageDto>> GetConversationIfParticipantAsync(
@@ -69,22 +56,9 @@ public class MessageService
     )
     {
         if (userId == otherUserId)
-            throw new ConversationAccessDeniedException();
+            throw new Exception("Conversa inválida");
 
-        var messages = await _repo.GetConversationAsync(userId, otherUserId);
-
-        if (!messages.Any())
-            return Enumerable.Empty<MessageDto>();
-
-        if (
-            messages.Any(m =>
-                m.Senderid != userId
-                && m.Receiverid != userId
-                && m.Senderid != otherUserId
-                && m.Receiverid != otherUserId
-            )
-        )
-            return null;
+        var messages = await _messageRepo.GetConversationAsync(userId, otherUserId);
 
         return messages.Select(m => new MessageDto
         {
