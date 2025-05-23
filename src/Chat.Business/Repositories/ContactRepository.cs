@@ -9,30 +9,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chat.Business.Repositories;
 
-public class UserRepository : IUserRepository
+public class ContactRepository : IContactRepository
 {
     private readonly ChatDbContext _db;
 
-    public UserRepository(ChatDbContext db)
+    public ContactRepository(ChatDbContext db)
     {
         _db = db;
     }
-
-    public async Task<User> GetByEmailAsync(string email) =>
-        await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-    public async Task AddAsync(User user)
-    {
-        _db.Users.Add(user);
-        await _db.SaveChangesAsync();
-    }
-
-    public async Task<bool> EmailExistsAsync(string email) =>
-        await _db.Users.AnyAsync(u => u.Email == email);
-
-    public async Task<User> GetByIdAsync(Guid id) => await _db.Users.FindAsync(id);
-
-    public async Task<bool> ExistsAsync(Guid id) => await _db.Users.AnyAsync(u => u.Id == id);
 
     public async Task<List<User>> GetContactsAsync(Guid userId)
     {
@@ -43,12 +27,17 @@ public class UserRepository : IUserRepository
             .ToListAsync();
     }
 
+    public async Task<List<Contact>> GetContactsRawAsync(Guid userId)
+    {
+        return await _db.Contacts.Where(c => c.Userid == userId).ToListAsync();
+    }
+
     public async Task<bool> ContactExistsAsync(Guid userId, Guid contactId)
     {
         return await _db.Contacts.AnyAsync(c => c.Userid == userId && c.Contactid == contactId);
     }
 
-    public async Task AddContactRawAsync(Contact contact)
+    public async Task AddAsync(Contact contact)
     {
         _db.Contacts.Add(contact);
         await _db.SaveChangesAsync();

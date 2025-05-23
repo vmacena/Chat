@@ -110,6 +110,8 @@ public static class StartupExtensions
         services.AddScoped<UserService>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<MessageService>();
+        services.AddScoped<IContactRepository, ContactRepository>();
+        services.AddScoped<ContactService>();
     }
 
     public static void UseStartupMiddleware(this WebApplication app)

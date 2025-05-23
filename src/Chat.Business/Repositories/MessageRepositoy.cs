@@ -34,4 +34,15 @@ public class MessageRepository : IMessageRepository
             .OrderBy(m => m.Sentat)
             .ToListAsync();
     }
+
+    public async Task<Message> GetLastMessageAsync(Guid user1, Guid user2)
+    {
+        return await _db
+            .Messages.Where(m =>
+                (m.Senderid == user1 && m.Receiverid == user2)
+                || (m.Senderid == user2 && m.Receiverid == user1)
+            )
+            .OrderByDescending(m => m.Sentat)
+            .FirstOrDefaultAsync();
+    }
 }
