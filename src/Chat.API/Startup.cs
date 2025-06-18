@@ -1,4 +1,3 @@
-// StartupExtensions.cs
 using System.Text;
 using System.Text.Json;
 using Chat.API.Hubs;
@@ -9,8 +8,12 @@ using Chat.Core.Interfaces;
 using Chat.Core.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+
+namespace Chat.API;
 
 public static class StartupExtensions
 {
@@ -31,6 +34,7 @@ public static class StartupExtensions
                     In = ParameterLocation.Header,
                     Type = SecuritySchemeType.Http,
                     Scheme = "bearer",
+                    BearerFormat = "JWT",
                 }
             );
             c.AddSecurityRequirement(
@@ -73,32 +77,36 @@ public static class StartupExtensions
                 {
                     OnMessageReceived = ctx =>
                     {
-                        var token = ctx.Request.Query["access_token"];
+                        var accessToken = ctx.Request.Query["access_token"];
                         var path = ctx.HttpContext.Request.Path;
-                        if (!string.IsNullOrEmpty(token) && path.StartsWithSegments("/chatHub"))
-                            ctx.Token = token;
+                        if (
+                            !string.IsNullOrEmpty(accessToken)
+                            && path.StartsWithSegments("/chatHub")
+                        )
+                            ctx.Token = accessToken;
                         return Task.CompletedTask;
                     },
                 };
             });
 
-        services.AddCors(b =>
-            b.AddPolicy(
+        services.AddCors(builder =>
+            builder.AddPolicy(
                 "AllowAll",
-                p =>
-                    p.SetIsOriginAllowed(_ => true)
-                        .AllowAnyMethod()
+                policy =>
+                    policy
+                        .SetIsOriginAllowed(_ => true)
                         .AllowAnyHeader()
+                        .AllowAnyMethod()
                         .AllowCredentials()
             )
         );
 
         services
             .AddSignalR()
-            .AddJsonProtocol(o =>
+            .AddJsonProtocol(options =>
             {
-                o.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                o.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+                options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
             });
 
         services.AddDbContext<ChatDbContext>(opt =>
@@ -112,6 +120,7 @@ public static class StartupExtensions
         services.AddScoped<MessageService>();
         services.AddScoped<IContactRepository, ContactRepository>();
         services.AddScoped<ContactService>();
+        services.AddScoped<ChatService>();
     }
 
     public static void UseStartupMiddleware(this WebApplication app)
@@ -123,10 +132,15 @@ public static class StartupExtensions
         }
 
         app.UseHttpsRedirection();
+        app.UseRouting();
         app.UseCors("AllowAll");
         app.UseAuthentication();
         app.UseAuthorization();
-        app.MapControllers();
-        app.MapHub<ChatHub>("/chatHub");
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapHub<ChatHub>("/chatHub");
+        });
     }
 }
