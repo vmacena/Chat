@@ -1,5 +1,7 @@
+using System;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Chat.API.Hubs;
 using Chat.API.Services;
 using Chat.Business.Repositories;
@@ -7,140 +9,140 @@ using Chat.Business.Services;
 using Chat.Core.Interfaces;
 using Chat.Core.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
-namespace Chat.API;
-
-public static class StartupExtensions
+namespace Chat.API
 {
-    public static void AddStartupServices(
-        this IServiceCollection services,
-        IConfiguration configuration
-    )
+    public static class StartupExtensions
     {
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(c =>
+        public static void AddStartupServices(
+            this IServiceCollection services,
+            IConfiguration configuration
+        )
         {
-            c.SwaggerDoc("v1", new OpenApiInfo { Title = "Chat API", Version = "v1" });
-            c.AddSecurityDefinition(
-                "Bearer",
-                new OpenApiSecurityScheme
-                {
-                    Name = "Authorization",
-                    In = ParameterLocation.Header,
-                    Type = SecuritySchemeType.Http,
-                    Scheme = "bearer",
-                    BearerFormat = "JWT",
-                }
-            );
-            c.AddSecurityRequirement(
-                new OpenApiSecurityRequirement
-                {
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerGen(c =>
+            {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Chat API", Version = "v1" });
+                c.AddSecurityDefinition(
+                    "Bearer",
+                    new OpenApiSecurityScheme
                     {
-                        new OpenApiSecurityScheme
+                        Name = "Authorization",
+                        In = ParameterLocation.Header,
+                        Type = SecuritySchemeType.Http,
+                        Scheme = "bearer",
+                        BearerFormat = "JWT",
+                    }
+                );
+                c.AddSecurityRequirement(
+                    new OpenApiSecurityRequirement
+                    {
                         {
-                            Reference = new OpenApiReference
+                            new OpenApiSecurityScheme
                             {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer",
+                                Reference = new OpenApiReference
+                                {
+                                    Type = ReferenceType.SecurityScheme,
+                                    Id = "Bearer",
+                                },
                             },
+                            Array.Empty<string>()
                         },
-                        Array.Empty<string>()
-                    },
-                }
-            );
-        });
+                    }
+                );
+            });
 
-        services.AddControllers();
+            services.AddControllers();
 
-        var key = Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!);
-        var issuer = configuration["Jwt:Issuer"]!;
+            var key = Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!);
+            var issuer = configuration["Jwt:Issuer"]!;
 
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(opts =>
-            {
-                opts.TokenValidationParameters = new TokenValidationParameters
+            services
+                .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(opts =>
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = issuer,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                };
-                opts.Events = new JwtBearerEvents
-                {
-                    OnMessageReceived = ctx =>
+                    opts.TokenValidationParameters = new TokenValidationParameters
                     {
-                        var accessToken = ctx.Request.Query["access_token"];
-                        var path = ctx.HttpContext.Request.Path;
-                        if (
-                            !string.IsNullOrEmpty(accessToken)
-                            && path.StartsWithSegments("/chatHub")
-                        )
-                            ctx.Token = accessToken;
-                        return Task.CompletedTask;
-                    },
-                };
-            });
+                        ValidateIssuer = true,
+                        ValidateAudience = false,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = issuer,
+                        IssuerSigningKey = new SymmetricSecurityKey(key),
+                    };
+                    opts.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = ctx =>
+                        {
+                            var accessToken = ctx.Request.Query["access_token"];
+                            var path = ctx.HttpContext.Request.Path;
+                            if (
+                                !string.IsNullOrEmpty(accessToken)
+                                && path.StartsWithSegments("/chatHub")
+                            )
+                                ctx.Token = accessToken;
+                            return Task.CompletedTask;
+                        },
+                    };
+                });
 
-        services.AddCors(builder =>
-            builder.AddPolicy(
-                "AllowAll",
-                policy =>
-                    policy
-                        .SetIsOriginAllowed(_ => true)
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials()
-            )
-        );
+            services.AddCors(builder =>
+                builder.AddPolicy(
+                    "AllowAll",
+                    policy =>
+                        policy
+                            .SetIsOriginAllowed(_ => true)
+                            .AllowAnyHeader()
+                            .AllowAnyMethod()
+                            .AllowCredentials()
+                )
+            );
 
-        services
-            .AddSignalR()
-            .AddJsonProtocol(options =>
-            {
-                options.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
-            });
+            services
+                .AddSignalR(options => options.EnableDetailedErrors = true)
+                .AddJsonProtocol(options =>
+                {
+                    options.PayloadSerializerOptions.PropertyNamingPolicy =
+                        JsonNamingPolicy.CamelCase;
+                    options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+                });
 
-        services.AddDbContext<ChatDbContext>(opt =>
-            opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")!)
-        );
+            services.AddDbContext<ChatDbContext>(opt =>
+                opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")!)
+            );
 
-        services.AddScoped<JwtService>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<UserService>();
-        services.AddScoped<IMessageRepository, MessageRepository>();
-        services.AddScoped<MessageService>();
-        services.AddScoped<IContactRepository, ContactRepository>();
-        services.AddScoped<ContactService>();
-        services.AddScoped<ChatService>();
-    }
-
-    public static void UseStartupMiddleware(this WebApplication app)
-    {
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
+            services.AddScoped<JwtService>();
+            services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<UserService>();
+            services.AddScoped<IMessageRepository, MessageRepository>();
+            services.AddScoped<MessageService>();
+            services.AddScoped<IContactRepository, ContactRepository>();
+            services.AddScoped<ContactService>();
+            services.AddScoped<ChatService>();
         }
 
-        app.UseHttpsRedirection();
-        app.UseRouting();
-        app.UseCors("AllowAll");
-        app.UseAuthentication();
-        app.UseAuthorization();
-
-        app.UseEndpoints(endpoints =>
+        public static void UseStartupMiddleware(this WebApplication app)
         {
-            endpoints.MapControllers();
-            endpoints.MapHub<ChatHub>("/chatHub");
-        });
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+
+            app.UseHttpsRedirection();
+            app.UseCors("AllowAll");
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.MapControllers();
+            app.MapHub<ChatHub>("/chatHub");
+        }
     }
 }
