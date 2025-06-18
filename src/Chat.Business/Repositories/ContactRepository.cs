@@ -9,18 +9,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chat.Business.Repositories;
 
-public class ContactRepository : IContactRepository
+public class ContactRepository(ChatDbContext db) : IContactRepository
 {
-    private readonly ChatDbContext _db;
-
-    public ContactRepository(ChatDbContext db)
-    {
-        _db = db;
-    }
-
     public async Task<List<User>> GetContactsAsync(Guid userId)
     {
-        return await _db
+        return await db
             .Contacts.Where(c => c.Userid == userId)
             .Include(c => c.ContactNavigation)
             .Select(c => c.ContactNavigation)
@@ -29,17 +22,17 @@ public class ContactRepository : IContactRepository
 
     public async Task<List<Contact>> GetContactsRawAsync(Guid userId)
     {
-        return await _db.Contacts.Where(c => c.Userid == userId).ToListAsync();
+        return await db.Contacts.Where(c => c.Userid == userId).ToListAsync();
     }
 
     public async Task<bool> ContactExistsAsync(Guid userId, Guid contactId)
     {
-        return await _db.Contacts.AnyAsync(c => c.Userid == userId && c.Contactid == contactId);
+        return await db.Contacts.AnyAsync(c => c.Userid == userId && c.Contactid == contactId);
     }
 
     public async Task AddAsync(Contact contact)
     {
-        _db.Contacts.Add(contact);
-        await _db.SaveChangesAsync();
+        db.Contacts.Add(contact);
+        await db.SaveChangesAsync();
     }
 }
