@@ -22,7 +22,8 @@ public class ContactController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetContacts()
     {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var userIdStr =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (!Guid.TryParse(userIdStr, out var userId))
             return Unauthorized();
 
@@ -33,7 +34,8 @@ public class ContactController : ControllerBase
     [HttpPost("by-email")]
     public async Task<IActionResult> AddContactByEmail([FromBody] AddContactByEmailDto dto)
     {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var userIdStr =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (!Guid.TryParse(userIdStr, out var userId))
             return Unauthorized();
 
