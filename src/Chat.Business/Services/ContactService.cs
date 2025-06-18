@@ -7,33 +7,22 @@ using Chat.Core.Interfaces;
 
 namespace Chat.Business.Services;
 
-public class ContactService
+public class ContactService(
+    IUserRepository userRepo,
+    IContactRepository contactRepo,
+    IMessageRepository messageRepo
+)
 {
-    private readonly IUserRepository _userRepo;
-    private readonly IContactRepository _contactRepo;
-    private readonly IMessageRepository _messageRepo;
-
-    public ContactService(
-        IUserRepository userRepo,
-        IContactRepository contactRepo,
-        IMessageRepository messageRepo
-    )
-    {
-        _userRepo = userRepo;
-        _contactRepo = contactRepo;
-        _messageRepo = messageRepo;
-    }
-
     public async Task AddContactByEmailAsync(Guid currentUserId, string email)
     {
         var target =
-            await _userRepo.GetByEmailAsync(email.Trim().ToLower())
+            await userRepo.GetByEmailAsync(email.Trim().ToLower())
             ?? throw new Exception("Contato não encontrado.");
 
         if (target.Id == currentUserId)
             throw new Exception("Você não pode se adicionar.");
 
-        if (await _contactRepo.ContactExistsAsync(currentUserId, target.Id))
+        if (await contactRepo.ContactExistsAsync(currentUserId, target.Id))
             throw new Exception("Contato já adicionado.");
 
         var c1 = new Contact
@@ -54,23 +43,23 @@ public class ContactService
             Createdat = DateTime.UtcNow.ToLocalTime(),
         };
 
-        await _contactRepo.AddAsync(c1);
-        await _contactRepo.AddAsync(c2);
+        await contactRepo.AddAsync(c1);
+        await contactRepo.AddAsync(c2);
     }
 
     public async Task<List<object>> GetContactsWithLastMessageAsync(Guid userId)
     {
-        var contactLinks = await _contactRepo.GetContactsRawAsync(userId);
+        var contactLinks = await contactRepo.GetContactsRawAsync(userId);
         var contactIds = contactLinks.Select(c => c.Contactid).ToList();
 
         var result = new List<object>();
         foreach (var contactId in contactIds)
         {
-            var user = await _userRepo.GetByIdAsync(contactId);
+            var user = await userRepo.GetByIdAsync(contactId);
             if (user == null)
                 continue;
 
-            var last = await _messageRepo.GetLastMessageAsync(userId, contactId);
+            var last = await messageRepo.GetLastMessageAsync(userId, contactId);
             result.Add(
                 new
                 {
