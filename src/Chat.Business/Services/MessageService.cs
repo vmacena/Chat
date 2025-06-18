@@ -9,23 +9,14 @@ using Chat.Core.Interfaces;
 
 namespace Chat.Business.Services;
 
-public class MessageService
+public class MessageService(IMessageRepository messageRepo, IUserRepository userRepo)
 {
-    private readonly IMessageRepository _messageRepo;
-    private readonly IUserRepository _userRepo;
-
-    public MessageService(IMessageRepository messageRepo, IUserRepository userRepo)
-    {
-        _messageRepo = messageRepo;
-        _userRepo = userRepo;
-    }
-
     public async Task<MessageDto> SendMessageAsync(MessageDto dto)
     {
-        if (!await _userRepo.ExistsAsync(dto.SenderId))
+        if (!await userRepo.ExistsAsync(dto.SenderId))
             throw new Exception("Remetente não encontrado");
 
-        if (!await _userRepo.ExistsAsync(dto.ReceiverId))
+        if (!await userRepo.ExistsAsync(dto.ReceiverId))
             throw new Exception("Destinatário não encontrado");
 
         var message = new Message
@@ -37,7 +28,7 @@ public class MessageService
             Sentat = DateTime.UtcNow,
         };
 
-        await _messageRepo.AddAsync(message);
+        await messageRepo.AddAsync(message);
 
         return new MessageDto
         {
@@ -56,9 +47,9 @@ public class MessageService
     )
     {
         if (userId == otherUserId)
-            throw new Exception("Conversa inválida");
+            throw new Exception("Invalid Conversation");
 
-        var messages = await _messageRepo.GetConversationAsync(userId, otherUserId);
+        var messages = await messageRepo.GetConversationAsync(userId, otherUserId);
 
         return messages.Select(m => new MessageDto
         {
