@@ -6,16 +6,9 @@ using Chat.Core.Interfaces;
 
 namespace Chat.Business.Services;
 
-public class UserService
+public class UserService(IUserRepository repo)
 {
-    private readonly IUserRepository _repo;
-
-    public UserService(IUserRepository repo)
-    {
-        _repo = repo;
-    }
-
-    public async Task<bool> EmailExistsAsync(string email) => await _repo.EmailExistsAsync(email);
+    public async Task<bool> EmailExistsAsync(string email) => await repo.EmailExistsAsync(email);
 
     public async Task<User> RegisterAsync(UserRegisterDto dto)
     {
@@ -28,13 +21,13 @@ public class UserService
             Passwordhash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Createdat = DateTime.UtcNow.ToLocalTime(),
         };
-        await _repo.AddAsync(user);
+        await repo.AddAsync(user);
         return user;
     }
 
     public async Task<User> AuthenticateAsync(UserLoginDto dto)
     {
-        var user = await _repo.GetByEmailAsync(dto.Email);
+        var user = await repo.GetByEmailAsync(dto.Email);
         if (user == null)
             return null;
         return BCrypt.Net.BCrypt.Verify(dto.Password, user.Passwordhash) ? user : null;
