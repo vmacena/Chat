@@ -1,5 +1,5 @@
-// ChatHub.cs
-using System.Security.Claims;
+using System;
+using System.Threading.Tasks;
 using Chat.Business.Services;
 using Chat.Common.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -10,40 +10,46 @@ namespace Chat.API.Hubs;
 [Authorize]
 public class ChatHub : Hub
 {
-    private readonly MessageService _svc;
+    private readonly ChatService _chatService;
 
-    public ChatHub(MessageService svc) => _svc = svc;
-
-    public async Task SendMessage(MessageDto dto)
+    public ChatHub(ChatService chatService)
     {
-        var idClaim =
-            Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-            ?? Context.User?.FindFirst("sub")?.Value;
-        if (idClaim == null || !Guid.TryParse(idClaim, out var sender))
-            throw new HubException("Usuário não autenticado");
+        _chatService = chatService;
+    }
 
-        dto.SenderId = sender;
-        var sent = await _svc.SendMessageAsync(dto);
-        await Clients.User(sent.ReceiverId.ToString()).SendAsync("ReceiveMessage", sent);
-        await Clients.User(sent.SenderId.ToString()).SendAsync("ReceiveMessage", sent);
+    public async Task SendMessage(SendMessageRequest dto)
+    {
+        var senderId = _chatService.GetAuthenticatedUserId(Context);
+        var message = new MessageDto
+        {
+            SenderId = senderId,
+            ReceiverId = dto.ReceiverId,
+            Content = dto.Content,
+            SentAt = DateTime.UtcNow,
+            Id = Guid.NewGuid(),
+        };
+
+        var sentMessage = await _chatService.SendMessageAsync(senderId, message);
+
+        await Clients
+            .User(sentMessage.ReceiverId.ToString())
+            .SendAsync("ReceiveMessage", sentMessage);
+        await Clients
+            .User(sentMessage.SenderId.ToString())
+            .SendAsync("ReceiveMessage", sentMessage);
     }
 
     public async Task GetConversation(string otherId)
     {
-        var idVal = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (
-            idVal == null
-            || !Guid.TryParse(idVal, out var me)
-            || !Guid.TryParse(otherId, out var other)
-        )
+        var userId = _chatService.GetAuthenticatedUserId(Context);
+
+        if (!Guid.TryParse(otherId, out var otherUserId))
         {
             await Clients.Caller.SendAsync("ReceiveConversation", Array.Empty<MessageDto>());
             return;
         }
 
-        var convo =
-            await _svc.GetConversationIfParticipantAsync(me, other)
-            ?? Enumerable.Empty<MessageDto>();
-        await Clients.Caller.SendAsync("ReceiveConversation", convo);
+        var conversation = await _chatService.GetConversationAsync(userId, otherUserId);
+        await Clients.Caller.SendAsync("ReceiveConversation", conversation);
     }
 }
