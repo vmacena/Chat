@@ -9,24 +9,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Chat.Business.Repositories;
 
-public class MessageRepository : IMessageRepository
+public class MessageRepository(ChatDbContext db) : IMessageRepository
 {
-    private readonly ChatDbContext _db;
-
-    public MessageRepository(ChatDbContext db)
-    {
-        _db = db;
-    }
-
     public async Task AddAsync(Message message)
     {
-        _db.Messages.Add(message);
-        await _db.SaveChangesAsync();
+        db.Messages.Add(message);
+        await db.SaveChangesAsync();
     }
 
     public async Task<IEnumerable<Message>> GetConversationAsync(Guid user1, Guid user2)
     {
-        return await _db
+        return await db
             .Messages.Where(m =>
                 (m.Senderid == user1 && m.Receiverid == user2)
                 || (m.Senderid == user2 && m.Receiverid == user1)
@@ -37,7 +30,7 @@ public class MessageRepository : IMessageRepository
 
     public async Task<Message> GetLastMessageAsync(Guid user1, Guid user2)
     {
-        return await _db
+        return await db
             .Messages.Where(m =>
                 (m.Senderid == user1 && m.Receiverid == user2)
                 || (m.Senderid == user2 && m.Receiverid == user1)
