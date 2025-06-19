@@ -1,19 +1,14 @@
-using System;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Chat.API.Hubs;
 using Chat.API.Services;
+using Chat.API.Utils;
 using Chat.Business.Repositories;
 using Chat.Business.Services;
 using Chat.Core.Interfaces;
 using Chat.Core.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -30,6 +25,7 @@ namespace Chat.API
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Chat API", Version = "v1" });
+                c.OperationFilter<FileUploadOperationFilter>();
                 c.AddSecurityDefinition(
                     "Bearer",
                     new OpenApiSecurityScheme
@@ -126,6 +122,8 @@ namespace Chat.API
             services.AddScoped<IContactRepository, ContactRepository>();
             services.AddScoped<ContactService>();
             services.AddScoped<ChatService>();
+            services.AddScoped<IUploadfileRepository, UploadfileRepository>();
+            services.AddScoped<UploadfileService>();
         }
 
         public static void UseStartupMiddleware(this WebApplication app)
@@ -137,6 +135,7 @@ namespace Chat.API
             }
 
             app.UseHttpsRedirection();
+            app.UseStaticFiles();
             app.UseCors("AllowAll");
             app.UseAuthentication();
             app.UseAuthorization();
